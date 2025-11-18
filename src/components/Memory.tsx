@@ -175,8 +175,8 @@ export default function Memory() {
           ) : (
             <div className="p-8 text-center text-muted-foreground">
               <Brain className="mx-auto mb-4 text-muted-foreground/50" size={48} />
-              <p className="font-medium mb-2">feature coming soon</p>
-              <p className="text-sm">auto-filtering will be available in a future update</p>
+              <p className="font-medium mb-2">no {view === "passes" ? "passed candidates" : "filtered candidates"} yet</p>
+              <p className="text-sm">candidates you pass or filter will appear here</p>
             </div>
           )}
         </div>
