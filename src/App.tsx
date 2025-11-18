@@ -441,7 +441,7 @@ function App() {
         setTranscriptsError('failed to fetch transcripts')
       }
     } catch (err) {
-      setTranscriptsError('Unable to connect to server')
+      setTranscriptsError('Loading...')
       console.error('transcript fetch error:', err)
     } finally {
       setTranscriptsLoading(false)
@@ -1393,9 +1393,8 @@ function App() {
             {transcriptsLoading ? (
               <div className="loading">loading transcripts...</div>
             ) : transcriptsError ? (
-              <div className="error">
+              <div className="loading">
                 {transcriptsError}
-                <p className="hint">Please refresh the page or contact support if the issue persists.</p>
               </div>
             ) : (
               <div className="transcripts-list">

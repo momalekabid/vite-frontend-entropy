@@ -13,6 +13,7 @@ interface VCSettings {
   rocketreach_api_key?: string
   fullenrich_api_key?: string
   anthropic_api_key?: string
+  google_api_key?: string
   is_active?: boolean
   created_at?: string
   updated_at?: string
@@ -244,6 +245,19 @@ export default function Settings({ apiUrl }: SettingsProps) {
                 value={settings.anthropic_api_key || ''}
                 onChange={(e) => setSettings({ ...settings, anthropic_api_key: e.target.value })}
                 placeholder="your anthropic api key"
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                google gemini api key
+              </label>
+              <input
+                type="password"
+                value={settings.google_api_key || ''}
+                onChange={(e) => setSettings({ ...settings, google_api_key: e.target.value })}
+                placeholder="your google gemini api key"
                 className="w-full px-4 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
