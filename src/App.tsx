@@ -441,8 +441,7 @@ function App() {
         setTranscriptsError('failed to fetch transcripts')
       }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err)
-      setTranscriptsError(`backend not running or cors issue: ${errorMsg}`)
+      setTranscriptsError('Unable to connect to server')
       console.error('transcript fetch error:', err)
     } finally {
       setTranscriptsLoading(false)
@@ -1396,7 +1395,7 @@ function App() {
             ) : transcriptsError ? (
               <div className="error">
                 {transcriptsError}
-                <p className="hint">make sure backend is running: cd backend && python main.py</p>
+                <p className="hint">Please refresh the page or contact support if the issue persists.</p>
               </div>
             ) : (
               <div className="transcripts-list">
