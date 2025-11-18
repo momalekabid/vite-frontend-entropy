@@ -31,27 +31,19 @@ interface FilteredCandidate {
 }
 
 export default function Memory() {
-  const [view, setView] = useState<"passes" | "filtered">("passes");
   const [passes, setPasses] = useState<PassedCandidate[]>([]);
-  const [filtered, setFiltered] = useState<FilteredCandidate[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchData();
-  }, [view]);
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      if (view === "passes") {
-        const response = await fetch(`${API_BASE}/api/outreach/pass-history?limit=50`);
-        const data = await response.json();
-        setPasses(data.passes || []);
-      } else {
-        const response = await fetch(`${API_BASE}/api/outreach/filtered-candidates?limit=50`);
-        const data = await response.json();
-        setFiltered(data.filtered || []);
-      }
+      const response = await fetch(`${API_BASE}/api/outreach/pass-history?limit=50`);
+      const data = await response.json();
+      setPasses(data.passes || []);
     } catch (err) {
       console.error("error fetching memory data:", err);
     } finally {
@@ -82,26 +74,6 @@ export default function Memory() {
 
   return (
     <div className="space-y-4">
-      {/* view selector */}
-      <div className="flex gap-2 bg-card border border-border rounded-lg p-2">
-        <Button
-          size="sm"
-          variant={view === "passes" ? "default" : "ghost"}
-          onClick={() => setView("passes")}
-          className="flex-1"
-        >
-          learning examples ({passes.length})
-        </Button>
-        <Button
-          size="sm"
-          variant={view === "filtered" ? "default" : "ghost"}
-          onClick={() => setView("filtered")}
-          className="flex-1"
-        >
-          filtered out ({filtered.length})
-        </Button>
-      </div>
-
       {/* content */}
       <div className="bg-card border border-border rounded-lg">
         <div className="divide-y divide-border max-h-[calc(100vh-350px)] overflow-y-auto">
@@ -109,7 +81,7 @@ export default function Memory() {
             <div className="p-8 text-center text-muted-foreground">
               loading memory...
             </div>
-          ) : view === "passes" ? (
+          ) : (
             passes.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <Brain className="mx-auto mb-4 text-muted-foreground/50" size={48} />
