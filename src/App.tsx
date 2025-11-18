@@ -182,6 +182,7 @@ interface Candidate {
   ai_key_strengths: string[]
   ai_concerns: string[]
   ai_talking_points: string[]
+  ai_fit_score?: number
   created_at?: string
 }
 
@@ -704,6 +705,10 @@ function App() {
 
   // reapply memory filter to existing candidates (progressive batch processing)
   const reapplyMemoryFilter = async () => {
+    // check if job was already paused before we started
+    const currentJob = searchJobs.find(j => j.job_id === selectedJobId)
+    const wasAlreadyPaused = currentJob?.status === 'paused'
+
     try {
       if (!selectedJobId) {
         alert('please select a search first')
@@ -711,10 +716,6 @@ function App() {
       }
 
       setReapplyingFilter(true)
-
-      // check if job was already paused before we started
-      const currentJob = searchJobs.find(j => j.job_id === selectedJobId)
-      const wasAlreadyPaused = currentJob?.status === 'paused'
 
       // pause the search (only if it's running)
       if (!wasAlreadyPaused) {
