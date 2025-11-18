@@ -791,7 +791,7 @@ function App() {
       setFilterProgress(null)
 
       // make sure to resume even on error (only if we paused it)
-      if (!wasAlreadyPaused) {
+      if (!wasAlreadyPaused && selectedJobId) {
         try {
           await fetch(`${API_BASE}/api/search-jobs/${selectedJobId}/resume`, { method: 'POST' })
           startSearchPolling(selectedJobId)
