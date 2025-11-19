@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Save } from 'lucide-react'
+import { Save, RefreshCw } from 'lucide-react'
 
 interface VCSettings {
   id?: number
@@ -27,6 +27,8 @@ export default function Settings({ apiUrl }: SettingsProps) {
   const [settings, setSettings] = useState<VCSettings>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMessage, setSyncMessage] = useState('')
 
   useEffect(() => {
     fetchSettings()
@@ -75,6 +77,31 @@ export default function Settings({ apiUrl }: SettingsProps) {
     }
   }
 
+  const triggerSync = async () => {
+    try {
+      setSyncing(true)
+      setSyncMessage('starting sync...')
+
+      const response = await fetch(`${apiUrl}/api/sync`, {
+        method: 'POST'
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setSyncMessage('sync started successfully!')
+        setTimeout(() => setSyncMessage(''), 3000)
+      } else {
+        setSyncMessage('sync failed: ' + (data.error || 'unknown error'))
+      }
+    } catch (error) {
+      console.error('failed to trigger sync:', error)
+      setSyncMessage('error triggering sync')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -92,15 +119,31 @@ export default function Settings({ apiUrl }: SettingsProps) {
             configure your investment thesis and preferences
           </p>
         </div>
-        <button
-          onClick={saveSettings}
-          disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-        >
-          <Save size={16} />
-          {saving ? 'saving...' : 'save settings'}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={triggerSync}
+            disabled={syncing}
+            className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'syncing...' : 'sync data'}
+          </button>
+          <button
+            onClick={saveSettings}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            <Save size={16} />
+            {saving ? 'saving...' : 'save settings'}
+          </button>
+        </div>
       </div>
+
+      {syncMessage && (
+        <div className="p-3 bg-muted border border-border rounded-lg text-sm text-foreground">
+          {syncMessage}
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* thesis description */}
