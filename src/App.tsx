@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Building2, Users, Calendar, FileText, Mail, Search, Download, TrendingUp, DollarSign, Activity, Globe, Linkedin, ExternalLink, StickyNote, CheckCircle2, RefreshCw, Info } from 'lucide-react'
+import { Building2, Users, Calendar, FileText, Mail, Search, Download, TrendingUp, DollarSign, Activity, Globe, Linkedin, ExternalLink, StickyNote, CheckCircle2, RefreshCw, Info, AlertCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from './contexts/AuthContext'
@@ -1124,8 +1124,8 @@ function App() {
               <span>{syncProgress.is_syncing ? 'syncing...' : 'sync'}</span>
             </button>
             {syncError && (
-              <div className="stat-pill" style={{ backgroundColor: '#fee', color: '#c00', cursor: 'default' }}>
-                <span style={{ fontSize: '12px' }}>sync error: {syncError}</span>
+              <div className="stat-pill" style={{ cursor: 'default' }} title={syncError}>
+                <AlertCircle size={14} style={{ color: '#ef4444' }} />
               </div>
             )}
           </div>
