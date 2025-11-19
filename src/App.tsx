@@ -412,6 +412,7 @@ function App() {
     last_updated: null,
     estimated_completion: null
   })
+  const [syncError, setSyncError] = useState<string | null>(null)
 
   // browse state
   const [browseCategory, setBrowseCategory] = useState<'companies' | 'people' | 'meetings' | 'emails' | 'files' | 'notes' | 'lists'>('companies')
@@ -576,12 +577,21 @@ function App() {
 
   const triggerSync = async () => {
     try {
-      await authenticatedFetch(`${API_BASE}/api/sync`, { method: 'POST' })
+      setSyncError(null)
+      const response = await authenticatedFetch(`${API_BASE}/api/sync`, { method: 'POST' })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`sync failed: ${response.status} ${errorText}`)
+      }
+
       console.log('sync triggered')
       // immediately fetch progress to start polling
       fetchSyncProgress()
     } catch (err) {
-      console.error('sync error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'failed to trigger sync'
+      console.error('sync error:', errorMessage)
+      setSyncError(errorMessage)
     }
   }
 
