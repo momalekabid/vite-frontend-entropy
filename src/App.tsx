@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { Building2, Users, Calendar, FileText, Mail, Search, Download, TrendingUp, DollarSign, Activity, Globe, Linkedin, ExternalLink, StickyNote, CheckCircle2, RefreshCw, Info } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { GoogleLogin } from '@react-oauth/google'
+import { useAuth } from './contexts/AuthContext'
+import { authenticatedFetch } from './utils/api'
 import CandidateCard from './CandidateCard'
 import AppSidebar from './components/AppSidebar'
 import RecentSearches from './components/RecentSearches'
@@ -293,6 +296,28 @@ function extractNameFromEmail(email: string): string {
 
 function App() {
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+  const { isAuthenticated, handleLoginSuccess, signOut } = useAuth()
+
+  // show login screen if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="bg-card border border-border rounded-lg p-8 max-w-md w-full">
+          <h1 className="text-2xl font-bold text-foreground mb-2">vc copilot</h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            sign in with your google account to continue
+          </p>
+          <GoogleLogin
+            onSuccess={handleLoginSuccess}
+            onError={() => {
+              console.log('login failed')
+              alert('login failed - check console for details')
+            }}
+          />
+        </div>
+      </div>
+    )
+  }
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transcripts' | 'browse' | 'candidates' | 'settings' | 'memory'>('dashboard')
 
@@ -425,7 +450,7 @@ function App() {
 
   const fetchTranscripts = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/transcripts-live`)
+      const response = await authenticatedFetch(`${API_BASE}/api/transcripts-live`)
 
       if (!response.ok) {
         throw new Error(`http ${response.status}: ${response.statusText}`)
@@ -459,7 +484,7 @@ function App() {
       const url = `${API_BASE}/api/attio/meetings/${directMeetingId}/transcript?recording_id=${directRecordingId}`
       console.log('fetching transcript from:', url)
 
-      const response = await fetch(url)
+      const response = await authenticatedFetch(url)
 
       if (!response.ok) {
         throw new Error(`http ${response.status}: ${response.statusText}`)
@@ -495,7 +520,7 @@ function App() {
 
     setAttioSearchLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/api/records/search?query=${encodeURIComponent(attioSearchQuery)}`, {
+      const response = await authenticatedFetch(`${API_BASE}/api/records/search?query=${encodeURIComponent(attioSearchQuery)}`, {
         method: 'POST'
       })
       const data = await response.json()
@@ -514,7 +539,7 @@ function App() {
     setSelectedRecord(record)
     setRecordTranscriptsLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/api/records/${record.object_slug}/${record.record_id}/transcripts`)
+      const response = await authenticatedFetch(`${API_BASE}/api/records/${record.object_slug}/${record.record_id}/transcripts`)
       const data: RecordTranscriptsResponse = await response.json()
 
       if (data.success) {
@@ -529,7 +554,7 @@ function App() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/stats`)
+      const response = await authenticatedFetch(`${API_BASE}/api/stats`)
       const data = await response.json()
       setStats(data)
     } catch (err) {
@@ -541,7 +566,7 @@ function App() {
     if (!searchQuery.trim()) return
 
     try {
-      const response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(searchQuery)}`)
+      const response = await authenticatedFetch(`${API_BASE}/api/search?q=${encodeURIComponent(searchQuery)}`)
       const data: SearchResults = await response.json()
       setSearchResults(data)
     } catch (err) {
@@ -551,7 +576,7 @@ function App() {
 
   const triggerSync = async () => {
     try {
-      await fetch(`${API_BASE}/api/sync`, { method: 'POST' })
+      await authenticatedFetch(`${API_BASE}/api/sync`, { method: 'POST' })
       console.log('sync triggered')
       // immediately fetch progress to start polling
       fetchSyncProgress()
@@ -562,7 +587,7 @@ function App() {
 
   const fetchSyncProgress = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/sync-progress`)
+      const response = await authenticatedFetch(`${API_BASE}/api/sync-progress`)
       const data = await response.json()
       setSyncProgress(data)
     } catch (err) {
@@ -597,7 +622,7 @@ function App() {
   const fetchBrowseData = async () => {
     setBrowseLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/api/${browseCategory}?limit=50`)
+      const response = await authenticatedFetch(`${API_BASE}/api/${browseCategory}?limit=50`)
       const data = await response.json()
 
       if (browseCategory === 'companies') {
@@ -658,7 +683,7 @@ function App() {
 
     setUniversalSearchLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(universalSearchQuery)}`)
+      const response = await authenticatedFetch(`${API_BASE}/api/search?q=${encodeURIComponent(universalSearchQuery)}`)
       const data: SearchResults = await response.json()
       setUniversalSearchResults(data)
     } catch (err) {
@@ -673,7 +698,7 @@ function App() {
     if (!targetJobId) return
 
     try {
-      const response = await fetch(`${API_BASE}/api/search-jobs/${targetJobId}`)
+      const response = await authenticatedFetch(`${API_BASE}/api/search-jobs/${targetJobId}`)
 
       // if job was deleted (404), stop polling and clear selection
       if (response.status === 404) {
@@ -719,7 +744,7 @@ function App() {
       // pause the search (only if it's running)
       if (!wasAlreadyPaused) {
         try {
-          await fetch(`${API_BASE}/api/search-jobs/${selectedJobId}/pause`, { method: 'POST' })
+          await authenticatedFetch(`${API_BASE}/api/search-jobs/${selectedJobId}/pause`, { method: 'POST' })
         } catch (pauseErr) {
           console.warn('failed to pause search:', pauseErr)
         }
@@ -732,7 +757,7 @@ function App() {
       }
 
       // get total count first for THIS SPECIFIC JOB
-      const countResponse = await fetch(`${API_BASE}/api/outreach/reapply-memory-filter/count?job_id=${selectedJobId}`)
+      const countResponse = await authenticatedFetch(`${API_BASE}/api/outreach/reapply-memory-filter/count?job_id=${selectedJobId}`)
       const countData = await countResponse.json()
 
       if (!countData.success) {
@@ -745,7 +770,7 @@ function App() {
 
       // process batches until done
       while (true) {
-        const batchResponse = await fetch(`${API_BASE}/api/outreach/reapply-memory-filter/batch?job_id=${selectedJobId}`, {
+        const batchResponse = await authenticatedFetch(`${API_BASE}/api/outreach/reapply-memory-filter/batch?job_id=${selectedJobId}`, {
           method: 'POST'
         })
         const batchData = await batchResponse.json()
@@ -775,7 +800,7 @@ function App() {
       // resume the search (only if we paused it)
       if (!wasAlreadyPaused) {
         try {
-          await fetch(`${API_BASE}/api/search-jobs/${selectedJobId}/resume`, { method: 'POST' })
+          await authenticatedFetch(`${API_BASE}/api/search-jobs/${selectedJobId}/resume`, { method: 'POST' })
         } catch (resumeErr) {
           console.warn('failed to resume search:', resumeErr)
         }
@@ -792,7 +817,7 @@ function App() {
       // make sure to resume even on error (only if we paused it)
       if (!wasAlreadyPaused && selectedJobId) {
         try {
-          await fetch(`${API_BASE}/api/search-jobs/${selectedJobId}/resume`, { method: 'POST' })
+          await authenticatedFetch(`${API_BASE}/api/search-jobs/${selectedJobId}/resume`, { method: 'POST' })
           startSearchPolling(selectedJobId)
         } catch (resumeErr) {
           console.warn('failed to resume search after error:', resumeErr)
@@ -828,7 +853,7 @@ function App() {
 
   const fetchSearchJobs = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/search-jobs`)
+      const response = await authenticatedFetch(`${API_BASE}/api/search-jobs`)
       const data = await response.json()
       if (data.success) {
         // only update if jobs count or status changed
@@ -853,7 +878,7 @@ function App() {
   const fetchSearchSuggestions = async (jobId: string) => {
     try {
       setSuggestionsLoading(true)
-      const response = await fetch(`${API_BASE}/api/search-jobs/${jobId}/suggestions`)
+      const response = await authenticatedFetch(`${API_BASE}/api/search-jobs/${jobId}/suggestions`)
       const data = await response.json()
       if (data.success && data.suggestions) {
         setSearchSuggestions(data.suggestions)
@@ -875,7 +900,7 @@ function App() {
     setCandidates([])
 
     try {
-      const response = await fetch(`${API_BASE}/api/search-jobs?query=${encodeURIComponent(query)}`, {
+      const response = await authenticatedFetch(`${API_BASE}/api/search-jobs?query=${encodeURIComponent(query)}`, {
         method: 'POST'
       })
       const data = await response.json()
@@ -903,7 +928,7 @@ function App() {
 
   const cancelSearchJob = async (jobId: string) => {
     try {
-      const response = await fetch(`${API_BASE}/api/search-jobs/${jobId}/pause`, {
+      const response = await authenticatedFetch(`${API_BASE}/api/search-jobs/${jobId}/pause`, {
         method: 'POST'
       })
       const data = await response.json()
@@ -919,7 +944,7 @@ function App() {
 
   const resumeSearchJob = async (jobId: string) => {
     try {
-      const response = await fetch(`${API_BASE}/api/search-jobs/${jobId}/resume`, {
+      const response = await authenticatedFetch(`${API_BASE}/api/search-jobs/${jobId}/resume`, {
         method: 'POST'
       })
       const data = await response.json()
@@ -939,7 +964,7 @@ function App() {
 
   const deleteSearchJob = async (jobId: string) => {
     try {
-      const response = await fetch(`${API_BASE}/api/search-jobs/${jobId}`, {
+      const response = await authenticatedFetch(`${API_BASE}/api/search-jobs/${jobId}`, {
         method: 'DELETE'
       })
 
@@ -970,7 +995,7 @@ function App() {
       // mark as analyzing
       setAnalyzingTranscripts(prev => new Set([...prev, transcriptId]))
 
-      const response = await fetch(`${API_BASE}/api/transcripts/${transcriptId}/augment`, {
+      const response = await authenticatedFetch(`${API_BASE}/api/transcripts/${transcriptId}/augment`, {
         method: 'POST'
       })
       const data = await response.json()
@@ -1013,7 +1038,7 @@ function App() {
       fetchSearchJobs()
       // fetch suggestions from most recent search for dashboard display
       const fetchDashboardSuggestions = async () => {
-        const response = await fetch(`${API_BASE}/api/search-jobs`)
+        const response = await authenticatedFetch(`${API_BASE}/api/search-jobs`)
         const data = await response.json()
         if (data.success && data.jobs.length > 0) {
           // get suggestions from most recent completed search
@@ -1209,7 +1234,7 @@ function App() {
                       setCandidates([])
 
                       try {
-                        const response = await fetch(`${API_BASE}/api/search-jobs?query=${encodeURIComponent(suggestionQuery)}`, {
+                        const response = await authenticatedFetch(`${API_BASE}/api/search-jobs?query=${encodeURIComponent(suggestionQuery)}`, {
                           method: 'POST'
                         })
                         const data = await response.json()
@@ -2200,7 +2225,7 @@ function App() {
                           setCandidates(prev => prev.filter(c => c.id !== candidate.id))
 
                           // track pass in background (don't wait for it)
-                          fetch(`${API_BASE}/api/outreach/track-pass`, {
+                          authenticatedFetch(`${API_BASE}/api/outreach/track-pass`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
