@@ -1123,6 +1123,11 @@ function App() {
               <RefreshCw size={14} className={syncProgress.is_syncing ? 'animate-spin' : ''} />
               <span>{syncProgress.is_syncing ? 'syncing...' : 'sync'}</span>
             </button>
+            {syncError && (
+              <div className="stat-pill" style={{ backgroundColor: '#fee', color: '#c00', cursor: 'default' }}>
+                <span style={{ fontSize: '12px' }}>sync error: {syncError}</span>
+              </div>
+            )}
           </div>
         </div>
       </header>
