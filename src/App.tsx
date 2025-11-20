@@ -323,6 +323,9 @@ function App() {
 
   // outreach tracking
   const [pendingOutreaches, setPendingOutreaches] = useState<any[]>([])
+  const [seenOutreaches, setSeenOutreaches] = useState<Set<string>>(new Set())
+  const [notifications, setNotifications] = useState<Array<{id: string, message: string, type: 'acceptance' | 'reply'}>>([])
+  const notificationPollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // autonomous search queue
   interface QueuedSearch {
@@ -1043,6 +1046,18 @@ function App() {
     // fetch initial data on mount
     fetchStats()
     fetchSearchJobs()
+    fetchPendingOutreaches()
+
+    // poll for outreach updates every 30 seconds
+    notificationPollIntervalRef.current = setInterval(() => {
+      fetchPendingOutreaches()
+    }, 30000)
+
+    return () => {
+      if (notificationPollIntervalRef.current) {
+        clearInterval(notificationPollIntervalRef.current)
+      }
+    }
   }, [])
 
   const fetchPendingOutreaches = async () => {
@@ -1052,6 +1067,45 @@ function App() {
       if (data.success) {
         const pending = data.outreaches.filter((o: any) => o.reached_out && !o.replied)
         setPendingOutreaches(pending.slice(0, 10))
+
+        // check for new acceptances and replies to show notifications
+        const newNotifications: Array<{id: string, message: string, type: 'acceptance' | 'reply'}> = []
+
+        data.outreaches.forEach((o: any) => {
+          const key = `${o.id}-${o.invitation_accepted ? 'accepted' : ''}-${o.replied ? 'replied' : ''}`
+
+          // check for new invitation acceptances
+          if (o.invitation_accepted && !seenOutreaches.has(`${o.id}-accepted`)) {
+            newNotifications.push({
+              id: `${o.id}-accepted-${Date.now()}`,
+              message: `${o.candidate_name} accepted your linkedin invitation!`,
+              type: 'acceptance'
+            })
+            setSeenOutreaches(prev => new Set(prev).add(`${o.id}-accepted`))
+          }
+
+          // check for new replies
+          if (o.replied && !seenOutreaches.has(`${o.id}-replied`)) {
+            newNotifications.push({
+              id: `${o.id}-replied-${Date.now()}`,
+              message: `${o.candidate_name} replied to your message!`,
+              type: 'reply'
+            })
+            setSeenOutreaches(prev => new Set(prev).add(`${o.id}-replied`))
+          }
+        })
+
+        // add new notifications
+        if (newNotifications.length > 0) {
+          setNotifications(prev => [...newNotifications, ...prev].slice(0, 5)) // keep last 5
+
+          // auto-dismiss after 8 seconds
+          newNotifications.forEach(notif => {
+            setTimeout(() => {
+              setNotifications(prev => prev.filter(n => n.id !== notif.id))
+            }, 8000)
+          })
+        }
       }
     } catch (err) {
       console.error('error fetching outreaches:', err)
@@ -2210,12 +2264,12 @@ function App() {
                               <div
                                 className="progress-fill"
                                 style={{
-                                  width: `${Math.min((job.progress.candidates_found / 15) * 100, 100)}%`
+                                  width: `${Math.min((job.progress.candidates_found / 500) * 100, 100)}%`
                                 }}
                               />
                             </div>
                             <div className="progress-text">
-                              {job.progress.candidates_found || 0} candidates found {job.progress.candidates_found >= 15 ? '✓' : ''}
+                              {job.progress.candidates_found || 0} / 500 candidates found
                             </div>
                           </div>
                         )}
@@ -2386,6 +2440,55 @@ function App() {
         </div>
       )}
       </div>
+
+      {/* notification toasts */}
+      {notifications.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          maxWidth: '400px'
+        }}>
+          {notifications.map(notif => (
+            <div
+              key={notif.id}
+              style={{
+                backgroundColor: notif.type === 'acceptance' ? '#10b981' : '#3b82f6',
+                color: 'white',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                animation: 'slideIn 0.3s ease-out',
+                fontWeight: '500'
+              }}
+            >
+              <span>{notif.type === 'acceptance' ? '✓' : '💬'}</span>
+              <span>{notif.message}</span>
+              <button
+                onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
+                style={{
+                  marginLeft: 'auto',
+                  background: 'none',
+                  border: 'none',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  padding: '0 4px'
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
