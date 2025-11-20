@@ -2148,7 +2148,7 @@ function App() {
                               />
                             </div>
                             <div className="progress-text">
-                              iteration {job.progress.searches_completed || 0} - {job.progress.candidates_found} candidates found
+                              {job.progress.candidates_found || 0} candidates found {job.progress.candidates_found >= 50 ? '✓' : ''}
                             </div>
                           </div>
                         )}
