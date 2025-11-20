@@ -321,6 +321,9 @@ function App() {
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transcripts' | 'browse' | 'candidates' | 'settings' | 'memory'>('dashboard')
 
+  // outreach tracking
+  const [pendingOutreaches, setPendingOutreaches] = useState<any[]>([])
+
   // autonomous search queue
   interface QueuedSearch {
     id: string
@@ -1042,10 +1045,35 @@ function App() {
     fetchSearchJobs()
   }, [])
 
+  const fetchPendingOutreaches = async () => {
+    try {
+      const response = await authenticatedFetch(`${API_BASE}/api/outreach`)
+      const data = await response.json()
+      if (data.success) {
+        const pending = data.outreaches.filter((o: any) => o.reached_out && !o.replied)
+        setPendingOutreaches(pending.slice(0, 10))
+      }
+    } catch (err) {
+      console.error('error fetching outreaches:', err)
+    }
+  }
+
+  const markOutreachReplied = async (outreachId: number) => {
+    try {
+      await authenticatedFetch(`${API_BASE}/api/outreach/${outreachId}/mark-replied`, {
+        method: 'POST'
+      })
+      fetchPendingOutreaches()
+    } catch (err) {
+      console.error('error marking replied:', err)
+    }
+  }
+
   useEffect(() => {
     if (activeTab === 'dashboard') {
       fetchStats()
       fetchSearchJobs()
+      fetchPendingOutreaches()
       // fetch suggestions from most recent search for dashboard display
       const fetchDashboardSuggestions = async () => {
         const response = await authenticatedFetch(`${API_BASE}/api/search-jobs`)
@@ -1158,6 +1186,45 @@ function App() {
               icon={<FileText size={24} />}
             />
           </div>
+
+          {/* pending linkedin outreaches */}
+          {pendingOutreaches.length > 0 && (
+            <div className="border border-border rounded-lg p-6 bg-card mb-6">
+              <h2 className="text-lg font-medium text-foreground mb-4">pending linkedin outreaches</h2>
+              <div className="space-y-2">
+                {pendingOutreaches.map(o => (
+                  <div
+                    key={o.id}
+                    className="border border-border rounded p-3 hover:bg-secondary/30 transition-colors flex items-center justify-between"
+                  >
+                    <div className="flex-1">
+                      <a
+                        href={o.linkedin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium hover:underline"
+                        style={{ color: '#00ff88' }}
+                      >
+                        {o.candidate_name}
+                      </a>
+                      {o.sent_at && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          sent {new Date(o.sent_at).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => markOutreachReplied(o.id)}
+                      className="text-xs px-3 py-1 rounded hover:opacity-80"
+                      style={{ background: '#00ff88', color: '#000' }}
+                    >
+                      mark replied
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* main dashboard grid */}
           <div className="grid grid-cols-3 gap-6">
@@ -2143,12 +2210,12 @@ function App() {
                               <div
                                 className="progress-fill"
                                 style={{
-                                  width: `${Math.min((job.progress.candidates_found / 50) * 100, 100)}%`
+                                  width: `${Math.min((job.progress.candidates_found / 15) * 100, 100)}%`
                                 }}
                               />
                             </div>
                             <div className="progress-text">
-                              {job.progress.candidates_found || 0} candidates found {job.progress.candidates_found >= 50 ? '✓' : ''}
+                              {job.progress.candidates_found || 0} candidates found {job.progress.candidates_found >= 15 ? '✓' : ''}
                             </div>
                           </div>
                         )}
