@@ -321,11 +321,7 @@ function App() {
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transcripts' | 'browse' | 'candidates' | 'settings' | 'memory'>('dashboard')
 
-  // outreach tracking
-  const [pendingOutreaches, setPendingOutreaches] = useState<any[]>([])
-  const [seenOutreaches, setSeenOutreaches] = useState<Set<string>>(new Set())
-  const [notifications, setNotifications] = useState<Array<{id: string, message: string, type: 'acceptance' | 'reply'}>>([])
-  const notificationPollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  // outreach tracking removed
 
   // autonomous search queue
   interface QueuedSearch {
@@ -445,6 +441,11 @@ function App() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false)
   const [candidatesSubTab, setCandidatesSubTab] = useState<'searchYourself' | 'recurringSearches'>('searchYourself')
   const [recurringSearchCandidates, setRecurringSearchCandidates] = useState<Record<string, Candidate[]>>({})
+
+  // rate limit state
+  const [rateLimited, setRateLimited] = useState(false)
+  const [rateLimitUntil, setRateLimitUntil] = useState<string | null>(null)
+  const [rateLimitSecondsRemaining, setRateLimitSecondsRemaining] = useState(0)
 
   // transcript analysis state
   const [analyzingTranscripts, setAnalyzingTranscripts] = useState<Set<number>>(new Set())
@@ -635,6 +636,41 @@ function App() {
     }
   }, [syncProgress.is_syncing])
 
+  // poll rate limit status and update countdown
+  useEffect(() => {
+    // check immediately on mount
+    checkRateLimitStatus()
+
+    // poll every 10 seconds to update status
+    const pollInterval = setInterval(() => {
+      checkRateLimitStatus()
+    }, 10000)
+
+    return () => {
+      clearInterval(pollInterval)
+    }
+  }, [])
+
+  // update countdown every second when rate limited
+  useEffect(() => {
+    if (!rateLimited) return
+
+    const countdownInterval = setInterval(() => {
+      setRateLimitSecondsRemaining(prev => {
+        if (prev <= 1) {
+          // time's up, refresh status
+          checkRateLimitStatus()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => {
+      clearInterval(countdownInterval)
+    }
+  }, [rateLimited])
+
   const fetchBrowseData = async () => {
     setBrowseLoading(true)
     try {
@@ -745,10 +781,6 @@ function App() {
 
   // reapply memory filter to existing candidates (progressive batch processing)
   const reapplyMemoryFilter = async () => {
-    // check if job was already paused before we started
-    const currentJob = searchJobs.find(j => j.job_id === selectedJobId)
-    const wasAlreadyPaused = currentJob?.status === 'paused'
-
     try {
       if (!selectedJobId) {
         alert('please select a search first')
@@ -757,16 +789,7 @@ function App() {
 
       setReapplyingFilter(true)
 
-      // pause the search (only if it's running)
-      if (!wasAlreadyPaused) {
-        try {
-          await authenticatedFetch(`${API_BASE}/api/search-jobs/${selectedJobId}/pause`, { method: 'POST' })
-        } catch (pauseErr) {
-          console.warn('failed to pause search:', pauseErr)
-        }
-      }
-
-      // stop polling
+      // stop polling temporarily
       if (searchPollIntervalRef.current) {
         clearInterval(searchPollIntervalRef.current)
         searchPollIntervalRef.current = null
@@ -813,30 +836,17 @@ function App() {
       // clear progress - filtering complete
       setFilterProgress(null)
 
-      // resume the search (only if we paused it)
-      if (!wasAlreadyPaused) {
-        try {
-          await authenticatedFetch(`${API_BASE}/api/search-jobs/${selectedJobId}/resume`, { method: 'POST' })
-        } catch (resumeErr) {
-          console.warn('failed to resume search:', resumeErr)
-        }
-
-        // restart polling
-        startSearchPolling(selectedJobId)
-      }
+      // restart polling
+      startSearchPolling(selectedJobId)
 
     } catch (err) {
       console.error('error reapplying memory filter:', err)
       alert('error reapplying memory filter')
       setFilterProgress(null)
 
-      // make sure to resume even on error (only if we paused it)
-      if (!wasAlreadyPaused && selectedJobId) {
-        try {
-          await authenticatedFetch(`${API_BASE}/api/search-jobs/${selectedJobId}/resume`, { method: 'POST' })
-          startSearchPolling(selectedJobId)
-        } catch (resumeErr) {
-          console.warn('failed to resume search after error:', resumeErr)
+      // restart polling even on error
+      if (selectedJobId) {
+        startSearchPolling(selectedJobId)
         }
       }
     } finally {
@@ -906,8 +916,33 @@ function App() {
     }
   }
 
+  const checkRateLimitStatus = async () => {
+    try {
+      const response = await authenticatedFetch(`${API_BASE}/api/settings/rate-limit-status`)
+      const data = await response.json()
+
+      if (data.rate_limited) {
+        setRateLimited(true)
+        setRateLimitUntil(data.until)
+        setRateLimitSecondsRemaining(data.seconds_remaining)
+      } else {
+        setRateLimited(false)
+        setRateLimitUntil(null)
+        setRateLimitSecondsRemaining(0)
+      }
+    } catch (err) {
+      console.error('error checking rate limit:', err)
+    }
+  }
+
   const submitCandidateSearch = async () => {
     if (!candidateSearchQuery.trim()) return
+
+    // check rate limit before starting search
+    if (rateLimited) {
+      console.warn('searches are rate limited')
+      return
+    }
 
     const query = candidateSearchQuery
     setCandidateSearchQuery('')
@@ -942,41 +977,7 @@ function App() {
     }
   }
 
-  const cancelSearchJob = async (jobId: string) => {
-    try {
-      const response = await authenticatedFetch(`${API_BASE}/api/search-jobs/${jobId}/pause`, {
-        method: 'POST'
-      })
-      const data = await response.json()
-      if (data.success) {
-        fetchSearchJobs()
-      } else {
-        console.error('failed to pause search')
-      }
-    } catch (err) {
-      console.error('error pausing search job:', err)
-    }
-  }
-
-  const resumeSearchJob = async (jobId: string) => {
-    try {
-      const response = await authenticatedFetch(`${API_BASE}/api/search-jobs/${jobId}/resume`, {
-        method: 'POST'
-      })
-      const data = await response.json()
-      if (data.success) {
-        fetchSearchJobs()
-        // restart polling if this is the selected job
-        if (jobId === selectedJobId) {
-          startSearchPolling(jobId)
-        }
-      } else {
-        console.error('failed to resume search')
-      }
-    } catch (err) {
-      console.error('error resuming search job:', err)
-    }
-  }
+  // removed pause/resume functionality since it doesn't work well with cloud run
 
   const deleteSearchJob = async (jobId: string) => {
     try {
@@ -1018,7 +1019,7 @@ function App() {
 
       if (data.success) {
         // update transcript with analysis
-        setTranscripts(transcripts.map(t => {
+        setTranscripts(prevTranscripts => prevTranscripts.map(t => {
           if (t.id === transcriptId) {
             return {
               ...t,
@@ -1046,88 +1047,14 @@ function App() {
     // fetch initial data on mount
     fetchStats()
     fetchSearchJobs()
-    fetchPendingOutreaches()
-
-    // poll for outreach updates every 30 seconds
-    notificationPollIntervalRef.current = setInterval(() => {
-      fetchPendingOutreaches()
-    }, 30000)
-
-    return () => {
-      if (notificationPollIntervalRef.current) {
-        clearInterval(notificationPollIntervalRef.current)
-      }
-    }
   }, [])
 
-  const fetchPendingOutreaches = async () => {
-    try {
-      const response = await authenticatedFetch(`${API_BASE}/api/outreach`)
-      const data = await response.json()
-      if (data.success) {
-        const pending = data.outreaches.filter((o: any) => o.reached_out && !o.replied)
-        setPendingOutreaches(pending.slice(0, 10))
-
-        // check for new acceptances and replies to show notifications
-        const newNotifications: Array<{id: string, message: string, type: 'acceptance' | 'reply'}> = []
-
-        data.outreaches.forEach((o: any) => {
-          const key = `${o.id}-${o.invitation_accepted ? 'accepted' : ''}-${o.replied ? 'replied' : ''}`
-
-          // check for new invitation acceptances
-          if (o.invitation_accepted && !seenOutreaches.has(`${o.id}-accepted`)) {
-            newNotifications.push({
-              id: `${o.id}-accepted-${Date.now()}`,
-              message: `${o.candidate_name} accepted your linkedin invitation!`,
-              type: 'acceptance'
-            })
-            setSeenOutreaches(prev => new Set(prev).add(`${o.id}-accepted`))
-          }
-
-          // check for new replies
-          if (o.replied && !seenOutreaches.has(`${o.id}-replied`)) {
-            newNotifications.push({
-              id: `${o.id}-replied-${Date.now()}`,
-              message: `${o.candidate_name} replied to your message!`,
-              type: 'reply'
-            })
-            setSeenOutreaches(prev => new Set(prev).add(`${o.id}-replied`))
-          }
-        })
-
-        // add new notifications
-        if (newNotifications.length > 0) {
-          setNotifications(prev => [...newNotifications, ...prev].slice(0, 5)) // keep last 5
-
-          // auto-dismiss after 8 seconds
-          newNotifications.forEach(notif => {
-            setTimeout(() => {
-              setNotifications(prev => prev.filter(n => n.id !== notif.id))
-            }, 8000)
-          })
-        }
-      }
-    } catch (err) {
-      console.error('error fetching outreaches:', err)
-    }
-  }
-
-  const markOutreachReplied = async (outreachId: number) => {
-    try {
-      await authenticatedFetch(`${API_BASE}/api/outreach/${outreachId}/mark-replied`, {
-        method: 'POST'
-      })
-      fetchPendingOutreaches()
-    } catch (err) {
-      console.error('error marking replied:', err)
-    }
-  }
+  // removed outreach tracking functions
 
   useEffect(() => {
     if (activeTab === 'dashboard') {
       fetchStats()
       fetchSearchJobs()
-      fetchPendingOutreaches()
       // fetch suggestions from most recent search for dashboard display
       const fetchDashboardSuggestions = async () => {
         const response = await authenticatedFetch(`${API_BASE}/api/search-jobs`)
@@ -1241,44 +1168,6 @@ function App() {
             />
           </div>
 
-          {/* pending linkedin outreaches */}
-          {pendingOutreaches.length > 0 && (
-            <div className="border border-border rounded-lg p-6 bg-card mb-6">
-              <h2 className="text-lg font-medium text-foreground mb-4">pending linkedin outreaches</h2>
-              <div className="space-y-2">
-                {pendingOutreaches.map(o => (
-                  <div
-                    key={o.id}
-                    className="border border-border rounded p-3 hover:bg-secondary/30 transition-colors flex items-center justify-between"
-                  >
-                    <div className="flex-1">
-                      <a
-                        href={o.linkedin_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium hover:underline"
-                        style={{ color: '#00ff88' }}
-                      >
-                        {o.candidate_name}
-                      </a>
-                      {o.sent_at && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          sent {new Date(o.sent_at).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => markOutreachReplied(o.id)}
-                      className="text-xs px-3 py-1 rounded hover:opacity-80"
-                      style={{ background: '#00ff88', color: '#000' }}
-                    >
-                      mark replied
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* main dashboard grid */}
           <div className="grid grid-cols-3 gap-6">
@@ -2175,16 +2064,33 @@ function App() {
               {/* search submission */}
               <div className="candidate-search-section">
                 <h3>new search</h3>
+
+                {/* rate limit warning */}
+                {rateLimited && (
+                  <div className="rate-limit-warning">
+                    <AlertCircle size={20} />
+                    <div className="rate-limit-content">
+                      <strong>RATE LIMIT EXCEEDED</strong>
+                      <p>searches are disabled for {Math.floor(rateLimitSecondsRemaining / 60)} minutes {rateLimitSecondsRemaining % 60} seconds</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="search-input-row">
                   <input
                     type="text"
                     value={candidateSearchQuery}
                     onChange={(e) => setCandidateSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && submitCandidateSearch()}
+                    onKeyPress={(e) => e.key === 'Enter' && !rateLimited && submitCandidateSearch()}
                     placeholder="e.g., find energy ml founders in the bay area"
                     className="candidate-search-input"
+                    disabled={rateLimited}
                   />
-                  <button onClick={submitCandidateSearch} className="submit-search-button">
+                  <button
+                    onClick={submitCandidateSearch}
+                    className="submit-search-button"
+                    disabled={rateLimited}
+                  >
                     start search
                   </button>
                 </div>
@@ -2221,30 +2127,6 @@ function App() {
                           <div className="job-stats">
                             <span>{job.candidate_count} candidates</span>
                             <div className="job-actions">
-                              {job.status === 'running' && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    cancelSearchJob(job.job_id)
-                                  }}
-                                  className="cancel-job-btn"
-                                  title="pause search job"
-                                >
-                                  ⏸
-                                </button>
-                              )}
-                              {job.status === 'paused' && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    resumeSearchJob(job.job_id)
-                                  }}
-                                  className="resume-job-btn"
-                                  title="resume search job"
-                                >
-                                  ▶
-                                </button>
-                              )}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
@@ -2269,7 +2151,9 @@ function App() {
                               />
                             </div>
                             <div className="progress-text">
-                              {job.progress.candidates_found || 0} / 500 candidates found
+                              {job.progress.candidates_found > 0
+                                ? `${job.progress.candidates_found} candidates found`
+                                : 'processing search parameters'}
                             </div>
                           </div>
                         )}
@@ -2441,54 +2325,6 @@ function App() {
       )}
       </div>
 
-      {/* notification toasts */}
-      {notifications.length > 0 && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-          maxWidth: '400px'
-        }}>
-          {notifications.map(notif => (
-            <div
-              key={notif.id}
-              style={{
-                backgroundColor: notif.type === 'acceptance' ? '#10b981' : '#3b82f6',
-                color: 'white',
-                padding: '12px 16px',
-                borderRadius: '8px',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                animation: 'slideIn 0.3s ease-out',
-                fontWeight: '500'
-              }}
-            >
-              <span>{notif.type === 'acceptance' ? '✓' : '💬'}</span>
-              <span>{notif.message}</span>
-              <button
-                onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
-                style={{
-                  marginLeft: 'auto',
-                  background: 'none',
-                  border: 'none',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '18px',
-                  padding: '0 4px'
-                }}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
 }

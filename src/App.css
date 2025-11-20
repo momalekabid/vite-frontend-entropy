@@ -2023,6 +2023,52 @@ body {
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
 }
 
+.submit-search-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.candidate-search-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* rate limit warning */
+.rate-limit-warning {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid var(--entropy-error);
+  border-radius: 8px;
+  color: var(--entropy-error);
+}
+
+.rate-limit-warning svg {
+  flex-shrink: 0;
+}
+
+.rate-limit-content {
+  flex: 1;
+}
+
+.rate-limit-content strong {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  letter-spacing: 0.5px;
+}
+
+.rate-limit-content p {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
 .search-jobs-section {
   padding: 2rem;
   background: var(--entropy-surface);
