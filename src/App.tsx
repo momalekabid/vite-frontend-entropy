@@ -847,7 +847,6 @@ function App() {
       // restart polling even on error
       if (selectedJobId) {
         startSearchPolling(selectedJobId)
-        }
       }
     } finally {
       setReapplyingFilter(false)
