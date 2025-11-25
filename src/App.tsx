@@ -12,6 +12,7 @@ import SearchSuggestions from './components/SearchSuggestions'
 import StarRating from './components/StarRating'
 import Settings from './components/Settings'
 import Memory from './components/Memory'
+import ScheduledSearches from './components/ScheduledSearches'
 import { RECURRING_SEARCHES } from './constants/recurringSearches'
 import './App.css'
 
@@ -2094,6 +2095,9 @@ function App() {
                   </button>
                 </div>
               </div>
+
+              {/* scheduled searches */}
+              <ScheduledSearches apiBase={API_BASE} />
 
               {/* search jobs status */}
               {searchJobs.length > 0 && (

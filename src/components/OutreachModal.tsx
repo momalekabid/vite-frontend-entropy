@@ -50,24 +50,60 @@ export default function OutreachModal({ candidate, searchQuery, searchId, onClos
     fetchSettings();
   }, []);
 
-  // default message templates
+  // fetch last used message template when channel changes
   useEffect(() => {
-    if (channel === "linkedin_invitation") {
-      setMessage(
-        `Hi ${candidate.name}, I'm impressed by your work at ${candidate.current_company}. We're an early-stage VC fund focused on deep-tech startups. Would love to connect!`
-      );
-      setSubject("");
-    } else if (channel === "linkedin_dm") {
-      setMessage(
-        `Hi ${candidate.name},\n\nI came across your profile and was impressed by your work at ${candidate.current_company}. We're an early-stage VC fund focused on deep-tech startups, and I'd love to chat about what you're building.\n\nWould you be open to a quick call next week?\n\nBest,\n[Your Name]`
-      );
-      setSubject("");
-    } else {
-      setSubject(`Quick intro - interested in ${candidate.current_company}`);
-      setMessage(
-        `Hi ${candidate.name},\n\nI hope this email finds you well. I came across your profile and was impressed by your work as ${candidate.current_title} at ${candidate.current_company}.\n\nWe're an early-stage VC fund focused on deep-tech startups, and I'd love to learn more about what you're building. Would you be open to a brief call next week?\n\nLooking forward to connecting,\n[Your Name]`
-      );
-    }
+    const fetchLastTemplate = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/outreach/last-message-template?channel=${channel}`);
+        const data = await response.json();
+
+        if (data.success && data.message_template) {
+          // replace placeholder with candidate name
+          let template = data.message_template;
+
+          // simple name replacement - handles common patterns
+          if (data.recipient_name && template.includes(data.recipient_name)) {
+            template = template.replace(new RegExp(data.recipient_name, 'g'), candidate.name);
+          }
+          // also try to replace Hi {name} patterns
+          template = template.replace(/\{name\}/gi, candidate.name);
+          template = template.replace(/Hi [A-Za-z]+,/i, `Hi ${candidate.name},`);
+
+          setMessage(template);
+
+          if (data.subject) {
+            setSubject(data.subject);
+          }
+        } else {
+          // fallback to defaults if no template found
+          setDefaultMessage();
+        }
+      } catch (err) {
+        console.error("error fetching last template:", err);
+        setDefaultMessage();
+      }
+    };
+
+    const setDefaultMessage = () => {
+      if (channel === "linkedin_invitation") {
+        setMessage(
+          `Hi ${candidate.name}, I'm impressed by your work at ${candidate.current_company}. We're an early-stage VC fund focused on deep-tech startups. Would love to connect!`
+        );
+        setSubject("");
+      } else if (channel === "linkedin_dm") {
+        setMessage(
+          `Hi ${candidate.name},\n\nI came across your profile and was impressed by your work at ${candidate.current_company}. We're an early-stage VC fund focused on deep-tech startups, and I'd love to chat about what you're building.\n\nWould you be open to a quick call next week?\n\nBest,\n[Your Name]`
+        );
+        setSubject("");
+      } else {
+        setSubject(`Quick intro - interested in ${candidate.current_company}`);
+        setMessage(
+          `Hi ${candidate.name},\n\nI hope this email finds you well. I came across your profile and was impressed by your work as ${candidate.current_title} at ${candidate.current_company}.\n\nWe're an early-stage VC fund focused on deep-tech startups, and I'd love to learn more about what you're building. Would you be open to a brief call next week?\n\nLooking forward to connecting,\n[Your Name]`
+        );
+      }
+    };
+
+    fetchLastTemplate();
   }, [channel, candidate]);
 
   // enrich email if needed
