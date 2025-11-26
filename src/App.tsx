@@ -1132,7 +1132,7 @@ function App() {
       {activeTab === 'dashboard' && (
         <div className="tab-content dashboard-content">
           {/* stats overview */}
-          <div className="grid grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-3 gap-4 mb-8">
             <DashboardCard
               title="Companies"
               value={stats.companies}
@@ -1142,11 +1142,6 @@ function App() {
               title="People"
               value={stats.people}
               icon={<Users size={24} />}
-            />
-            <DashboardCard
-              title="Emails"
-              value={stats.emails}
-              icon={<Mail size={24} />}
             />
             <DashboardCard
               title="Transcripts"
@@ -1599,12 +1594,6 @@ function App() {
                 onClick={() => setBrowseCategory('meetings')}
               >
                 meetings
-              </button>
-              <button
-                className={`category-tab ${browseCategory === 'emails' ? 'active' : ''}`}
-                onClick={() => setBrowseCategory('emails')}
-              >
-                emails
               </button>
               <button
                 className={`category-tab ${browseCategory === 'files' ? 'active' : ''}`}
