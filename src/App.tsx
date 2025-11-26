@@ -437,6 +437,8 @@ function App() {
   const [reapplyingFilter, setReapplyingFilter] = useState(false)
   const [filterProgress, setFilterProgress] = useState<{current: number, total: number} | null>(null)
   const [candidateSearchQuery, setCandidateSearchQuery] = useState('')
+  const [customFilteringCriteria, setCustomFilteringCriteria] = useState('')
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null)
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
   const [suggestionsLoading, setSuggestionsLoading] = useState(false)
@@ -945,13 +947,21 @@ function App() {
     }
 
     const query = candidateSearchQuery
+    const customCriteria = customFilteringCriteria
     setCandidateSearchQuery('')
+    setCustomFilteringCriteria('')
     setCandidatesLoading(true)
     setSearchSuggestions([])
     setCandidates([])
 
     try {
-      const response = await authenticatedFetch(`${API_BASE}/api/search-jobs?query=${encodeURIComponent(query)}`, {
+      // build url with query and optional custom filtering criteria
+      let url = `${API_BASE}/api/search-jobs?query=${encodeURIComponent(query)}`
+      if (customCriteria && customCriteria.trim()) {
+        url += `&custom_filtering_criteria=${encodeURIComponent(customCriteria)}`
+      }
+
+      const response = await authenticatedFetch(url, {
         method: 'POST'
       })
       const data = await response.json()
@@ -2069,6 +2079,56 @@ function App() {
                   >
                     start search
                   </button>
+                </div>
+
+                {/* advanced filtering criteria */}
+                <div style={{ marginTop: '1rem' }}>
+                  <button
+                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.5rem 0'
+                    }}
+                  >
+                    <span>{showAdvancedFilters ? '▼' : '▶'}</span>
+                    <span>advanced filtering criteria</span>
+                  </button>
+
+                  {showAdvancedFilters && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>
+                        custom filtering requirements (applied to all candidates):
+                      </label>
+                      <textarea
+                        value={customFilteringCriteria}
+                        onChange={(e) => setCustomFilteringCriteria(e.target.value)}
+                        placeholder="e.g., Must be current founders at companies with 1-10 employees, located in Europe or North America, from fellowship programs like Thiel Foundation, EF, Sigma Squared, Z Fellows, or Schwarzman Scholars"
+                        style={{
+                          width: '100%',
+                          minHeight: '80px',
+                          padding: '0.75rem',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          background: 'var(--background)',
+                          color: 'var(--text)',
+                          fontFamily: 'inherit',
+                          fontSize: '0.875rem',
+                          resize: 'vertical'
+                        }}
+                        disabled={rateLimited}
+                      />
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem', marginBottom: 0 }}>
+                        tip: be specific about company stage, geography, fellowship programs, or other hard requirements
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
