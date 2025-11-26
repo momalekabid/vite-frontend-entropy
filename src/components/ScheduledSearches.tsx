@@ -100,11 +100,18 @@ export default function ScheduledSearches({ apiBase }: ScheduledSearchesProps) {
       const res = await authenticatedFetch(`${apiBase}/api/scheduled-searches/${id}`, {
         method: 'DELETE'
       })
+
       if (res.ok) {
+        alert('scheduled search deleted successfully!')
         fetchScheduledSearches()
+      } else {
+        const error = await res.text()
+        alert(`failed to delete: ${error}`)
+        console.error('delete failed:', res.status, error)
       }
     } catch (err) {
       console.error('error deleting scheduled search:', err)
+      alert(`error deleting: ${err}`)
     }
   }
 
