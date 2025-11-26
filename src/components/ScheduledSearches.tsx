@@ -185,7 +185,7 @@ export default function ScheduledSearches({ apiBase }: ScheduledSearchesProps) {
             fontSize: '0.875rem',
             color: 'var(--muted-foreground)'
           }}>
-            automatic recurring searches • {searches.length} active
+            automatic recurring searches • runs every day/week/month
           </p>
         </div>
 
@@ -408,7 +408,7 @@ export default function ScheduledSearches({ apiBase }: ScheduledSearchesProps) {
                       color: 'var(--secondary-foreground)',
                       fontWeight: '500'
                     }}>
-                      {search.frequency}
+                      runs every {search.frequency === 'daily' ? '24h' : search.frequency === 'weekly' ? '7d' : '30d'}
                     </span>
                   </div>
 
