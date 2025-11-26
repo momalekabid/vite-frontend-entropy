@@ -26,6 +26,7 @@ export default function OutreachModal({ candidate, searchQuery, searchId, onClos
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [enriching, setEnriching] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [enrichedEmail, setEnrichedEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [linkedinAccountId, setLinkedinAccountId] = useState("");
@@ -105,6 +106,40 @@ export default function OutreachModal({ candidate, searchQuery, searchId, onClos
 
     fetchLastTemplate();
   }, [channel, candidate]);
+
+  // generate personalized message with ai
+  const handleGenerateMessage = async () => {
+    setGenerating(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/api/outreach/generate-message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidate_name: candidate.name,
+          candidate_headline: "", // could extract from candidate data if available
+          candidate_company: candidate.current_company || "",
+          candidate_title: candidate.current_title || "",
+          candidate_location: "",
+          mutual_connection: "",
+          channel: channel
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.message) {
+        setMessage(data.message);
+      } else {
+        setError(data.error || "failed to generate message");
+      }
+    } catch (err) {
+      setError("error generating message: " + err);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   // enrich email if needed
   const handleEnrichEmail = async () => {
@@ -321,7 +356,17 @@ export default function OutreachModal({ candidate, searchQuery, searchId, onClos
 
           {/* message */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">message</label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">message</label>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleGenerateMessage}
+                disabled={generating}
+              >
+                {generating ? "✨ generating..." : "✨ ai generate"}
+              </Button>
+            </div>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}

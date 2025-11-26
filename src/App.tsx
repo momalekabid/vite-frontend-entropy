@@ -1112,10 +1112,6 @@ function App() {
               <span>{stats.people}</span>
             </div>
             <div className="stat-pill">
-              <Mail size={14} />
-              <span>{stats.emails}</span>
-            </div>
-            <div className="stat-pill">
               <Calendar size={14} />
               <span>{stats.meetings}</span>
             </div>
@@ -1123,15 +1119,6 @@ function App() {
               <FileText size={14} />
               <span>{stats.transcripts}</span>
             </div>
-            <button
-              onClick={triggerSync}
-              disabled={syncProgress.is_syncing}
-              className="stat-pill hover:bg-primary/10 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              title={syncProgress.is_syncing ? syncProgress.current_step : 'sync data from attio'}
-            >
-              <RefreshCw size={14} className={syncProgress.is_syncing ? 'animate-spin' : ''} />
-              <span>{syncProgress.is_syncing ? 'syncing...' : 'sync'}</span>
-            </button>
             {syncError && (
               <div className="stat-pill" style={{ cursor: 'default' }} title={syncError}>
                 <AlertCircle size={14} style={{ color: '#ef4444' }} />
