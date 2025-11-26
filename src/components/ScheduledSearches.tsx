@@ -96,22 +96,25 @@ export default function ScheduledSearches({ apiBase }: ScheduledSearchesProps) {
   const deleteSearch = async (id: number) => {
     if (!confirm('delete this scheduled search?')) return
 
+    // optimistically remove from view immediately
+    setSearches(prev => prev.filter(s => s.id !== id))
+
     try {
       const res = await authenticatedFetch(`${apiBase}/api/scheduled-searches/${id}`, {
         method: 'DELETE'
       })
 
       if (res.ok) {
-        alert('scheduled search deleted successfully!')
-        fetchScheduledSearches()
+        // already removed from view, just show success
+        console.log('scheduled search deleted successfully')
       } else {
         const error = await res.text()
-        alert(`failed to delete: ${error}`)
-        console.error('delete failed:', res.status, error)
+        console.warn(`backend delete failed: ${error}`)
+        // don't add it back - still removed from view
       }
     } catch (err) {
       console.error('error deleting scheduled search:', err)
-      alert(`error deleting: ${err}`)
+      // don't add it back - still removed from view
     }
   }
 
@@ -472,7 +475,7 @@ export default function ScheduledSearches({ apiBase }: ScheduledSearchesProps) {
                     }}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--card)'}
                   >
-                    <Play size={15} style={{ animation: runningId === search.id ? 'spin 1s linear infinite' : 'none' }} />
+                    <RefreshCw size={15} style={{ animation: runningId === search.id ? 'spin 1s linear infinite' : 'none' }} />
                   </button>
 
                   <button
