@@ -320,7 +320,7 @@ function App() {
     )
   }
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transcripts' | 'browse' | 'candidates' | 'settings' | 'memory'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transcripts' | 'browse' | 'candidates' | 'settings' | 'memory' | 'scheduled'>('dashboard')
 
   // outreach tracking removed
 
@@ -2096,9 +2096,6 @@ function App() {
                 </div>
               </div>
 
-              {/* scheduled searches */}
-              <ScheduledSearches apiBase={API_BASE} />
-
               {/* search jobs status */}
               {searchJobs.length > 0 && (
                 <div className="search-jobs-section">
@@ -2317,6 +2314,21 @@ function App() {
             <p className="subtitle">review learning data and auto-filtered profiles</p>
           </div>
           <Memory />
+        </div>
+      )}
+
+      {/* scheduled searches view */}
+      {activeTab === 'scheduled' && (
+        <div className="tab-content">
+          <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem' }}>
+            <div style={{ marginBottom: '2rem' }}>
+              <h1 style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '0.5rem' }}>Scheduled Searches</h1>
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '1rem' }}>
+                Set up recurring searches that run automatically to keep your pipeline fresh
+              </p>
+            </div>
+            <ScheduledSearches apiBase={API_BASE} />
+          </div>
         </div>
       )}
 

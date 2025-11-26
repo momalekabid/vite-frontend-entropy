@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Home, Users, FileText, MessageSquare, Settings, Zap, ChevronLeft, Brain } from 'lucide-react'
+import { Home, Users, FileText, MessageSquare, Settings, Zap, ChevronLeft, Brain, Calendar } from 'lucide-react'
 
 interface NavItem {
   id: string
@@ -8,8 +8,8 @@ interface NavItem {
 }
 
 interface AppSidebarProps {
-  activeTab: 'dashboard' | 'candidates' | 'browse' | 'transcripts' | 'settings' | 'memory'
-  onNavChange: (tab: 'dashboard' | 'candidates' | 'browse' | 'transcripts' | 'settings' | 'memory') => void
+  activeTab: 'dashboard' | 'candidates' | 'browse' | 'transcripts' | 'settings' | 'memory' | 'scheduled'
+  onNavChange: (tab: 'dashboard' | 'candidates' | 'browse' | 'transcripts' | 'settings' | 'memory' | 'scheduled') => void
 }
 
 export default function AppSidebar({ activeTab, onNavChange }: AppSidebarProps) {
@@ -18,6 +18,7 @@ export default function AppSidebar({ activeTab, onNavChange }: AppSidebarProps) 
   const navItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: <Home size={20} /> },
     { id: 'candidates', label: 'Searches', icon: <Users size={20} /> },
+    { id: 'scheduled', label: 'Scheduled', icon: <Calendar size={20} /> },
     { id: 'browse', label: 'Browse', icon: <FileText size={20} /> },
     { id: 'transcripts', label: 'Transcripts', icon: <MessageSquare size={20} /> },
     { id: 'memory', label: 'Memory', icon: <Brain size={20} /> },
