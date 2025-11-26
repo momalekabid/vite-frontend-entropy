@@ -7,6 +7,7 @@ interface ScheduledSearch {
   name: string
   query: string
   description?: string
+  custom_filtering_criteria?: string
   frequency: string
   is_active: boolean
   last_run_at?: string
@@ -27,6 +28,7 @@ export default function ScheduledSearches({ apiBase }: ScheduledSearchesProps) {
     name: '',
     query: '',
     description: '',
+    custom_filtering_criteria: '',
     frequency: 'weekly'
   })
   const [creating, setCreating] = useState(false)
@@ -63,13 +65,16 @@ export default function ScheduledSearches({ apiBase }: ScheduledSearchesProps) {
       if (newSearch.description) {
         params.append('description', newSearch.description)
       }
+      if (newSearch.custom_filtering_criteria) {
+        params.append('custom_filtering_criteria', newSearch.custom_filtering_criteria)
+      }
 
       const res = await authenticatedFetch(`${apiBase}/api/scheduled-searches?${params}`, {
         method: 'POST'
       })
 
       if (res.ok) {
-        setNewSearch({ name: '', query: '', description: '', frequency: 'weekly' })
+        setNewSearch({ name: '', query: '', description: '', custom_filtering_criteria: '', frequency: 'weekly' })
         setShowCreateForm(false)
         fetchScheduledSearches()
       }
@@ -304,6 +309,26 @@ export default function ScheduledSearches({ apiBase }: ScheduledSearchesProps) {
               onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
             />
 
+            <textarea
+              placeholder="custom filtering criteria (optional) - e.g., Must be current founders at companies with 1-10 employees in Europe or North America"
+              value={newSearch.custom_filtering_criteria}
+              onChange={(e) => setNewSearch({ ...newSearch, custom_filtering_criteria: e.target.value })}
+              rows={3}
+              style={{
+                padding: '0.625rem 0.75rem',
+                borderRadius: '0.375rem',
+                border: '1px solid var(--border)',
+                backgroundColor: 'var(--card)',
+                fontSize: '0.875rem',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                fontFamily: 'inherit',
+                resize: 'vertical'
+              }}
+              onFocus={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+              onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+            />
+
             <select
               value={newSearch.frequency}
               onChange={(e) => setNewSearch({ ...newSearch, frequency: e.target.value })}
@@ -429,6 +454,20 @@ export default function ScheduledSearches({ apiBase }: ScheduledSearchesProps) {
                       fontStyle: 'italic'
                     }}>
                       {search.description}
+                    </p>
+                  )}
+
+                  {search.custom_filtering_criteria && (
+                    <p style={{
+                      margin: '0 0 0.625rem 0',
+                      fontSize: '0.75rem',
+                      color: 'var(--muted-foreground)',
+                      padding: '0.5rem',
+                      backgroundColor: 'var(--muted)',
+                      borderRadius: '0.375rem',
+                      borderLeft: '2px solid var(--primary)'
+                    }}>
+                      <strong>custom filters:</strong> {search.custom_filtering_criteria}
                     </p>
                   )}
 
